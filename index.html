@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Tracker Pro</title>
+    <style>
+        :root { 
+            --primary-green: #22c55e; 
+            --primary-blue: #2563eb; 
+            --danger-red: #ef4444; 
+            --warning-amber: #f59e0b; 
+            --bg-body: #f8fafc; 
+            --bg-card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        [data-theme="dark"] {
+            --bg-body: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+        }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg-body); 
+            color: var(--text-main);
+            padding: 10px; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .header-container {
+            position: relative;
+            width: 100%;
+            max-width: 450px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .main-title { 
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, var(--primary-green), var(--primary-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            text-align: center;
+        }
+
+        .theme-toggle {
+            position: absolute;
+            right: 0;
+            cursor: pointer;
+            font-size: 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card { 
+            background: var(--bg-card); 
+            padding: 20px; 
+            border-radius: 24px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            width: 100%; 
+            max-width: 450px; 
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+
+        /* COLLAPSIBLE HISTORY STYLES */
+        details.history-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 12px;
+            overflow: hidden;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        summary {
+            padding: 15px 20px;
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            outline: none;
+        }
+
+        summary::-webkit-details-marker { display: none; }
+
+        details[open] summary {
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.02);
+        }
+
+        .history-content {
+            padding: 10px 20px;
+        }
+
+        .balance-box { 
+            background: var(--primary-green); 
+            padding: 25px; 
+            border-radius: 20px; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            border: 1px solid #000000; 
+        }
+        
+        .balance-box.over-budget { background: var(--danger-red); }
+        .balance-box small { color: #000000; font-weight: 900; text-transform: uppercase; }
+        .balance-box h1 { margin: 10px 0; font-size: 32px; font-weight: 800; color: #ffffff; }
+
+        .progress-container { background: rgba(0,0,0,0.1); border-radius: 10px; height: 8px; margin: 15px 0; overflow: hidden; }
+        #progressBar { background: white; height: 100%; width: 0%; transition: width 0.4s ease; }
+
+        .box-stats { display: flex; justify-content: space-around; font-size: 12px; font-weight: 700; color: white; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; }
+
+        .input-group { margin-bottom: 12px; }
+        label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; }
+        
+        input { 
+            width: 100%; padding: 12px; border: 1px solid var(--border-color); 
+            border-radius: 12px; box-sizing: border-box; font-size: 16px; outline: none; 
+            background: var(--bg-card); color: var(--text-main);
+        }
+
+        .unwanted-container { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin: 18px 0; 
+            cursor: pointer; 
+            padding-left: 5px;
+        }
+        .unwanted-container input { 
+            width: 20px; 
+            height: 20px; 
+            margin: 0; 
+            cursor: pointer;
+            accent-color: var(--primary-blue);
+        }
+        
+        .unwanted-container span { 
+            font-size: 12px; 
+            font-weight: 700; 
+            color: #64748b; 
+        }
+
+        button { padding: 14px; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.2s; width: 100%; }
+        .add-btn { background: var(--primary-blue); color: white; margin-bottom: 8px; font-size: 16px;}
+        .save-month-btn { background: #1e293b; color: white; font-size: 16px;}
+        
+        .clear-container { 
+            display: flex; 
+            justify-content: flex-end; 
+            margin-top: 12px; 
+        }
+        .clear-btn-text { 
+            background: none; 
+            color: #ef4444; 
+            font-size: 12px; 
+            font-weight: 700; 
+            cursor: pointer; 
+            border: none; 
+            display: flex; 
+            align-items: center; 
+            gap: 4px;
+            padding: 0;
+            width: auto;
+        }
+
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { 
+            background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; 
+            border-radius: 15px; margin-bottom: 10px; position: relative;
+        }
+        .li-content { display: flex; justify-content: space-between; align-items: center; }
+        li.unwanted-row { border-left: 5px solid var(--warning-amber); background: #fffcf0; }
+        [data-theme="dark"] li.unwanted-row { background: #2d2a1e; }
+
+        .edit-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+        .edit-input-name { flex: 2; padding: 8px !important; border-radius: 8px !important; }
+        .edit-input-amt { flex: 0.8; padding: 8px !important; border-radius: 8px !important; }
+        .edit-icons { display: flex; gap: 12px; align-items: center; padding-left: 5px; }
+        .icon-btn { cursor: pointer; font-size: 18px; transition: transform 0.1s; }
+
+        .frequent-tag { background: #e0e7ff; color: #4338ca; font-size: 9px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+
+        .item-actions { display: flex; align-items: center; gap: 12px; }
+        .edit-btn { cursor: pointer; color: #fb923c; font-size: 18px; }
+        .delete-btn { cursor: pointer; color: var(--danger-red); font-size: 18px; }
+
+        .hist-item { 
+            display: grid; 
+            grid-template-columns: 1.5fr 1fr 0.8fr; 
+            gap: 5px;
+            align-items: center; 
+            padding: 8px 0; 
+            border-bottom: 1px solid var(--border-color);
+        }
+        .hist-name { font-size: 13px; font-weight: 600; text-align: left; }
+        .hist-time { font-size: 10px; color: var(--text-muted); text-align: left; }
+        .hist-amt { font-size: 13px; font-weight: 800; text-align: right; }
+
+        .modal-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); display:none; justify-content:center; align-items:center; z-index: 1000;
+        }
+        .modal {
+            background: var(--bg-card); padding: 25px; border-radius: 20px; width: 90%; max-width: 350px; text-align: center;
+        }
+        .modal-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body data-theme="light">
+
+    <div class="header-container">
+        <h1 class="main-title">💰 Budget Tracker</h1>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    </div>
+    
+    <div class="card">
+        <div id="balanceCard" class="balance-box">
+            <small>Remaining Balance</small>
+            <h1 id="displayBalance">💰 ₹0</h1>
+            <div class="progress-container"><div id="progressBar"></div></div>
+            <div class="box-stats">
+                <span id="statIncome">Income: ₹0</span>
+                <span id="statExpense">Expense: ₹0</span>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Monthly Salary</label>
+            <input type="number" id="salaryInput" placeholder="47800" oninput="saveAndRefresh()">
+        </div>
+
+        <div class="input-group">
+            <label id="inputLabel">Add Expense</label>
+            <input type="text" id="expName" placeholder="What was it for?" oninput="this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1)">
+            <input type="number" id="expAmount" placeholder="Amount (Mandatory)" style="margin-top:8px;">
+            
+            <label class="unwanted-container">
+                <input type="checkbox" id="unwantedCheck">
+                <span>Mark as "Unwanted"</span>
+            </label>
+
+            <button class="add-btn" id="submitBtn" onclick="addExpense()">Add Expense</button>
+            <button class="save-month-btn" onclick="checkDuplicateHistory()">Save Monthly History</button>
+        </div>
+
+        <div class="clear-container">
+            <button class="clear-btn-text" onclick="clearAll()">🗑️ Clear Current List</button>
+        </div>
+
+        <ul id="expenseList" style="margin-top:15px;"></ul>
+    </div>
+
+    <div style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <p style="font-weight: 800; margin-bottom: 15px;">Saved History (Click to expand)</p>
+        <div id="historyList" style="width: 100%; max-width: 450px;"></div>
+    </div>
+
+    <div id="duplicateModal" class="modal-overlay">
+        <div class="modal">
+            <h3>Month Already Exists</h3>
+            <p id="modalMsg" style="font-size: 14px; color: var(--text-muted);">History for this month is already saved. What would you like to do?</p>
+            <div class="modal-btns">
+                <button class="add-btn" style="background: var(--primary-blue);" onclick="handleHistoryAction('merge')">Merge (Add to existing)</button>
+                <button class="add-btn" style="background: var(--warning-amber);" onclick="handleHistoryAction('overwrite')">Overwrite (Replace old)</button>
+                <button class="clear-btn-text" style="width: 100%; justify-content: center;" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let state = JSON.parse(localStorage.getItem('budget_pro_data')) || { salary: 0, expenses: [] };
+    let historyData = JSON.parse(localStorage.getItem('budget_pro_history')) || [];
+    let activeEditId = null;
+
+    function toggleTheme() {
+        const body = document.body;
+        body.setAttribute('data-theme', body.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+    }
+
+    function saveAndRefresh() {
+        state.salary = parseFloat(document.getElementById('salaryInput').value) || 0;
+        localStorage.setItem('budget_pro_data', JSON.stringify(state));
+        render();
+    }
+
+    function addExpense() {
+        const nameNode = document.getElementById('expName');
+        const amountNode = document.getElementById('expAmount');
+        const unwantedNode = document.getElementById('unwantedCheck');
+        const amount = parseFloat(amountNode.value);
+
+        if (isNaN(amount) || amount <= 0) return alert("Please enter a valid amount.");
+
+        const now = new Date();
+        state.expenses.unshift({ 
+            id: Date.now(), 
+            name: nameNode.value.trim() || "Misc Expense", 
+            amount: amount, 
+            unwanted: unwantedNode.checked,
+            fullDate: `${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit', hour12: true}).toLowerCase()}`
+        });
+
+        nameNode.value = ''; amountNode.value = ''; unwantedNode.checked = false;
+        saveAndRefresh();
+    }
+
+    function toggleInlineEdit(id) {
+        activeEditId = (activeEditId === id) ? null : id;
+        render();
+    }
+
+    function saveInlineEdit(id) {
+        const name = document.getElementById(`edit-name-${id}`).value;
+        const amt = parseFloat(document.getElementById(`edit-amt-${id}`).value);
+        if (isNaN(amt) || amt <= 0) return alert("Invalid amount");
+        const index = state.expenses.findIndex(e => e.id === id);
+        if (index !== -1) {
+            state.expenses[index].name = name;
+            state.expenses[index].amount = amt;
+            activeEditId = null;
+            saveAndRefresh();
+        }
+    }
+
+    function render() {
+        const totalExp = state.expenses.reduce((s, e) => s + e.amount, 0);
+        const rem = state.salary - totalExp;
+        const progress = state.salary > 0 ? Math.min((totalExp / state.salary) * 100, 100) : 0;
+
+        document.getElementById('displayBalance').innerText = `💰 ₹${rem.toLocaleString()}`;
+        document.getElementById('statIncome').innerText = `Income: ₹${state.salary.toLocaleString()}`;
+        document.getElementById('statExpense').innerText = `Expense: ₹${totalExp.toLocaleString()}`;
+        document.getElementById('progressBar').style.width = progress + '%';
+        document.getElementById('balanceCard').classList.toggle('over-budget', rem < 0);
+        document.getElementById('salaryInput').value = state.salary || '';
+
+        const nameCounts = state.expenses.reduce((acc, curr) => {
+            const name = curr.name.toLowerCase().trim();
+            acc[name] = (acc[name] || 0) + 1;
+            return acc;
+        }, {});
+
+        const list = document.getElementById('expenseList');
+        list.innerHTML = '';
+        state.expenses.forEach(e => {
+            const isFrequent = nameCounts[e.name.toLowerCase().trim()] > 1;
+            const isEditing = activeEditId === e.id;
+            let li = document.createElement('li');
+            li.className = e.unwanted ? 'unwanted-row' : '';
+
+            if (isEditing) {
+                li.innerHTML = `
+                    <div class="edit-row">
+                        <input type="text" class="edit-input-name" id="edit-name-${e.id}" value="${e.name}">
+                        <input type="number" class="edit-input-amt" id="edit-amt-${e.id}" value="${e.amount}">
+                        <div class="edit-icons">
+                            <span class="icon-btn" onclick="saveInlineEdit(${e.id})">💾</span>
+                            <span class="icon-btn" onclick="deleteExpense(${e.id})">🗑️</span>
+                        </div>
+                    </div>`;
+            } else {
+                li.innerHTML = `
+                    <div class="li-content">
+                        <div style="flex:1">
+                            <strong>${e.name}${isFrequent ? '<span class="frequent-tag">FREQUENT</span>' : ''}</strong>
+                            <div style="font-size:10px; color:var(--text-muted)">${e.fullDate}</div>
+                        </div>
+                        <div class="item-actions">
+                            <span style="font-weight:bold; font-size: 14px;">₹${e.amount}</span>
+                            <span class="edit-btn" onclick="toggleInlineEdit(${e.id})">✏️</span>
+                            <span class="delete-btn" onclick="deleteExpense(${e.id})">🗑️</span>
+                        </div>
+                    </div>`;
+            }
+            list.appendChild(li);
+        });
+        renderHistory();
+    }
+
+    function deleteExpense(id) {
+        state.expenses = state.expenses.filter(x => x.id !== id);
+        activeEditId = null;
+        saveAndRefresh();
+    }
+
+    function renderHistory() {
+        const hList = document.getElementById('historyList');
+        hList.innerHTML = '';
+        historyData.forEach(h => {
+            const itemsHtml = h.details.map(d => `
+                <div class="hist-item">
+                    <span class="hist-name">${d.name}</span>
+                    <span class="hist-time">${d.fullDate}</span>
+                    <span class="hist-amt">₹${d.amount}</span>
+                </div>
+            `).join('');
+
+            hList.innerHTML += `
+                <details class="history-card">
+                    <summary>
+                        <span>🗓️ ${h.month}</span>
+                        <span style="color:var(--primary-blue)">₹${h.totalSpent.toLocaleString()} ▾</span>
+                    </summary>
+                    <div class="history-content">
+                        ${itemsHtml}
+                    </div>
+                </details>`;
+        });
+    }
+
+    function checkDuplicateHistory() {
+        if (state.expenses.length === 0) return alert("Current list is empty!");
+        const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        const existingIndex = historyData.findIndex(h => h.month === currentMonth);
+        if (existingIndex !== -1) {
+            document.getElementById('duplicateModal').style.display = 'flex';
+        } else {
+            saveHistory('new');
+        }
+    }
+
+    function handleHistoryAction(action) {
+        saveHistory(action);
+        closeModal();
+    }
+
+    function saveHistory(type) {
+        const monthYear = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        const existingIndex = historyData.findIndex(h => h.month === monthYear);
+
+        if (type === 'overwrite' && existingIndex !== -1) {
+            historyData.splice(existingIndex, 1);
+        }
+
+        if (type === 'merge' && existingIndex !== -1) {
+            // MERGE: Existing Old + New Data
+            historyData[existingIndex].details = [...state.expenses, ...historyData[existingIndex].details];
+            historyData[existingIndex].totalSpent = historyData[existingIndex].details.reduce((s, e) => s + e.amount, 0);
+        } else {
+            // NEW Entry
+            historyData.unshift({ 
+                id: Date.now(), 
+                month: monthYear, 
+                totalSpent: state.expenses.reduce((s, e) => s + e.amount, 0), 
+                details: [...state.expenses] 
+            });
+        }
+
+        // PREVENT DUPLICATES: Clear active list after merge/save so button cannot be clicked for same data twice
+        state.expenses = [];
+        localStorage.setItem('budget_pro_data', JSON.stringify(state));
+        localStorage.setItem('budget_pro_history', JSON.stringify(historyData));
+        alert("History saved successfully and current list cleared.");
+        render();
+    }
+
+    function closeModal() { document.getElementById('duplicateModal').style.display = 'none'; }
+    function clearAll() { if(confirm("Clear current list?")) { state.expenses = []; saveAndRefresh(); } }
+
+    render();
+</script>
+</body>
+</html>
