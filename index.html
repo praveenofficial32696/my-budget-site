@@ -196,14 +196,14 @@
             align-items: center;
             gap: 8px;
         }
-        /* Premium share button – circular, elevated */
+        /* Premium share button – circular, elevated – touch friendly */
         .share-btn {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             font-size: 18px;
             cursor: pointer;
-            width: 32px;
-            height: 32px;
+            width: 40px;        /* slightly larger for easier tapping */
+            height: 40px;
             border-radius: 50%;
             display: inline-flex;
             align-items: center;
@@ -213,6 +213,7 @@
             transition: all 0.2s;
             padding: 0;
             line-height: 1;
+            flex-shrink: 0;      /* prevent shrinking on small flex wraps */
         }
         .share-btn:hover {
             background: var(--bg-body);
@@ -245,10 +246,12 @@
 
         details.history-card { background: var(--bg-card); border-radius: 15px; border: 1px solid var(--border-color); margin-bottom: 10px; width: 100%; max-width: 450px; overflow: hidden; }
         summary { padding: 14px; cursor: pointer; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; outline: none; }
+        
+        /* mobile-friendly history item grid */
         .hist-item { 
             display: grid; 
-            grid-template-columns: auto 1fr minmax(70px, auto); /* third column now has min width */
-            gap: 1px;
+            grid-template-columns: auto 1fr minmax(70px, auto); 
+            gap: 4px;          /* slightly larger gap for readability (preserves spacing, not a functional change) */
             padding: 10px; 
             border-bottom: 1px dotted var(--border-color); 
             font-size: 13px; 
@@ -263,6 +266,28 @@
         .hist-amount {
             text-align: right;
             font-weight: 700;
+            white-space: nowrap;   /* keep amount from breaking, but allow scroll if needed (small screens) */
+        }
+        /* allow long descriptions to wrap gracefully on mobile */
+        .hist-item > span:nth-child(2) {
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+        /* ensure share button and stats stay aligned */
+        .hist-summary-stats {
+            margin-bottom: 8px;
+        }
+        /* extra touch for the summary stats on very small devices */
+        @media (max-width: 380px) {
+            .hist-summary-stats {
+                gap: 6px;
+                font-size: 10px;
+            }
+            .share-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
         }
     </style>
 </head>
@@ -313,6 +338,7 @@
         <ul id="expenseList"></ul>
     </div>
 
+    <!-- Saved History section – mobile optimized with clear touch targets -->
     <div style="width: 100%; max-width: 450px; margin-top: 10px;">
         <p style="font-weight: 800; font-size: 14px; margin-bottom: 10px; text-align: center; color: var(--text-muted);">Saved History</p>
         <div id="historyList"></div>
@@ -536,7 +562,7 @@
             const existing = historyData[existingIndex];
             existing.details = [...state.expenses, ...existing.details];
             existing.totalSpent = existing.details.reduce((s, e) => s + e.amount, 0);
-            existing.salary = state.salary; // ✅ update salary to current top card value
+            existing.salary = state.salary; // update salary to current top card value
         } else {
             historyData.unshift({ 
                 id: Date.now(), 
@@ -554,7 +580,8 @@
         render();
     }
 
-    // Share function – opens native sharing sheet
+    // Share function – uses Web Share API when available (opens native share sheet on mobile/Windows)
+    // Falls back to clipboard copy with a user-friendly message.
     function shareMonth(month) {
         const entry = historyData.find(h => h.month === month);
         if (!entry) return showAlert("Error", "Month not found");
@@ -565,9 +592,11 @@
             navigator.share({
                 title: `Budget History: ${entry.month}`,
                 text: text,
-            }).catch(() => {});
+            }).catch(() => {}); // user cancelled is fine
         } else {
-            navigator.clipboard?.writeText(text).then(() => showAlert("Copied!", "History copied to clipboard."));
+            // Fallback: copy to clipboard – still lets user paste into any app
+            navigator.clipboard?.writeText(text).then(() => showAlert("Copied!", "History copied to clipboard. You can paste it anywhere."))
+            .catch(() => showAlert("Sharing unavailable", "Your browser does not support sharing, and clipboard access failed."));
         }
     }
 
