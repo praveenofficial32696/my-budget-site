@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Budget Tracker · perfect alignment</title>
+    <title>Budget Tracker · aligned amounts</title>
     <style>
         :root { 
             --primary-green: #22c55e; 
@@ -178,8 +178,17 @@
             min-width: 24px;
             font-weight: 700;
             color: var(--text-muted);
-            margin-right: 1px;   /* exactly one pixel gap */
-            line-height: normal;  /* ensures it aligns with text baseline */
+            margin-right: 1px;
+            line-height: normal;
+        }
+
+        /* Amount value styling – right aligned with minimum width */
+        .amount-value {
+            text-align: right;
+            min-width: 70px;
+            display: inline-block;
+            font-weight: 800;
+            font-size: 14px;
         }
 
         .history-header {
@@ -187,25 +196,38 @@
             align-items: center;
             gap: 8px;
         }
+        /* Premium share button – circular, elevated */
         .share-btn {
-            background: transparent;
-            border: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
             font-size: 18px;
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 8px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             color: var(--text-muted);
-            width: auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+            padding: 0;
+            line-height: 1;
         }
         .share-btn:hover {
             background: var(--bg-body);
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
+
         .hist-summary-stats {
             font-size: 11px;
             color: var(--text-muted);
             display: flex;
+            align-items: center;
             gap: 10px;
             margin-top: 4px;
+            flex-wrap: wrap;
         }
 
         .modal-overlay {
@@ -225,8 +247,8 @@
         summary { padding: 14px; cursor: pointer; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; outline: none; }
         .hist-item { 
             display: grid; 
-            grid-template-columns: auto 1fr auto; 
-            gap: 1px;           /* exactly one pixel gap */
+            grid-template-columns: auto 1fr minmax(70px, auto); /* third column now has min width */
+            gap: 1px;
             padding: 10px; 
             border-bottom: 1px dotted var(--border-color); 
             font-size: 13px; 
@@ -236,7 +258,11 @@
             color: var(--text-muted);
             font-weight: 600;
             min-width: 24px;
-            line-height: normal;  /* align with text */
+            line-height: normal;
+        }
+        .hist-amount {
+            text-align: right;
+            font-weight: 700;
         }
     </style>
 </head>
@@ -438,7 +464,7 @@
                             </div>
                         </div>
                         <div class="item-actions">
-                            <span style="font-weight:800; font-size:14px;">₹${e.amount.toLocaleString()}</span>
+                            <span class="amount-value">₹${e.amount.toLocaleString()}</span>
                             <span class="edit-btn" onclick="toggleInlineEdit(${e.id})">✏️</span>
                             <span class="delete-btn" onclick="deleteExpense(${e.id})">🗑️</span>
                         </div>
@@ -510,11 +536,12 @@
             const existing = historyData[existingIndex];
             existing.details = [...state.expenses, ...existing.details];
             existing.totalSpent = existing.details.reduce((s, e) => s + e.amount, 0);
+            existing.salary = state.salary; // ✅ update salary to current top card value
         } else {
             historyData.unshift({ 
                 id: Date.now(), 
                 month: monthYear, 
-                salary: state.salary,
+                salary: state.salary,  // captured from top card at save time
                 totalSpent: state.expenses.reduce((s, e) => s + e.amount, 0), 
                 details: [...state.expenses] 
             });
@@ -528,13 +555,15 @@
     }
 
     // Share function – opens native sharing sheet
-    function shareMonth(month, salary, totalSpent, details) {
-        const text = `${month}\nSalary: ₹${salary.toLocaleString()}\nTotal Expenses: ₹${totalSpent.toLocaleString()}\nRemaining: ₹${(salary - totalSpent).toLocaleString()}\n\nDetails:\n` + 
-            details.map((d, i) => `${i+1}. ${d.name}: ₹${d.amount} (${d.fullDate})`).join('\n');
+    function shareMonth(month) {
+        const entry = historyData.find(h => h.month === month);
+        if (!entry) return showAlert("Error", "Month not found");
+        const text = `${entry.month}\nSalary: ₹${entry.salary.toLocaleString()}\nTotal Expenses: ₹${entry.totalSpent.toLocaleString()}\nRemaining: ₹${(entry.salary - entry.totalSpent).toLocaleString()}\n\nDetails:\n` + 
+            entry.details.map((d, i) => `${i+1}. ${d.name}: ₹${d.amount} (${d.fullDate})`).join('\n');
         
         if (navigator.share) {
             navigator.share({
-                title: `Budget History: ${month}`,
+                title: `Budget History: ${entry.month}`,
                 text: text,
             }).catch(() => {});
         } else {
@@ -551,17 +580,14 @@
                 <div class="hist-item">
                     <span class="hist-item-number">${idx+1}.</span>
                     <span><strong>${d.name}</strong><br><small style="color:var(--text-muted)">${d.fullDate}</small></span>
-                    <span style="font-weight:700">₹${d.amount.toLocaleString()}</span>
+                    <span class="hist-amount">₹${d.amount.toLocaleString()}</span>
                 </div>
             `).join('');
 
             hList.innerHTML += `
-                <details class="history-card">
+                <details class="history-card" data-month="${h.month}">
                     <summary>
-                        <div class="history-header">
-                            <span>🗓️ ${h.month}</span>
-                            <button class="share-btn" onclick="shareMonth('${h.month}', ${h.salary}, ${h.totalSpent}, ${JSON.stringify(h.details).replace(/'/g, "\\'")})">📤</button>
-                        </div>
+                        <span>🗓️ ${h.month}</span>
                         <span style="color:var(--primary-blue)">₹${h.totalSpent.toLocaleString()} ▾</span>
                     </summary>
                     <div style="background:var(--bg-body); padding:10px;">
@@ -569,6 +595,7 @@
                             <span>💰 Income: ₹${h.salary.toLocaleString()}</span>
                             <span>💸 Expense: ₹${h.totalSpent.toLocaleString()}</span>
                             <span>⚖️ Remaining: ₹${remaining.toLocaleString()}</span>
+                            <button class="share-btn" onclick="shareMonth('${h.month}')" title="Share this month">📤</button>
                         </div>
                         ${itemsHtml}
                     </div>
