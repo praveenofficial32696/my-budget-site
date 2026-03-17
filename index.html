@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Budget Tracker Pro · Premium</title>
+    <title>Budget Tracker · perfect alignment</title>
     <style>
         :root { 
             --primary-green: #22c55e; 
@@ -16,7 +16,6 @@
             --text-muted: #64748b;
             --border-color: #e2e8f0;
             --balance-outline: #ff9800;
-            /* premium light teal */
             --premium-teal: #14b8a6; 
         }
 
@@ -132,7 +131,6 @@
             border-top: 1px solid rgba(255,255,255,0.2); 
         }
 
-        /* Input Controls */
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
         
@@ -161,7 +159,6 @@
         .clear-container { display: flex; justify-content: flex-end; margin-bottom: 10px; }
         .clear-btn-text { background: none; color: var(--danger-red); font-size: 12px; font-weight: 700; width: auto; padding: 5px; }
 
-        /* List Items */
         ul { list-style: none; padding: 0; margin: 0; }
         li { 
             background: var(--bg-body); border: 1px solid var(--border-color); padding: 12px; 
@@ -175,16 +172,16 @@
         .delete-btn { color: var(--danger-red); font-size: 18px; cursor: pointer; }
         .frequent-tag { background: var(--primary-blue); color: white; font-size: 8px; padding: 2px 5px; border-radius: 4px; margin-left: 5px; vertical-align: middle;}
 
-        /* Number badge for list items – reduced spacing */
+        /* Number badge – exactly one space (1px) */
         .expense-number {
             display: inline-block;
             min-width: 24px;
             font-weight: 700;
             color: var(--text-muted);
-            margin-right: 4px;   /* was 8px – now closer */
+            margin-right: 1px;   /* exactly one pixel gap */
+            line-height: normal;  /* ensures it aligns with text baseline */
         }
 
-        /* History card enhancements */
         .history-header {
             display: flex;
             align-items: center;
@@ -211,7 +208,6 @@
             margin-top: 4px;
         }
 
-        /* Modals */
         .modal-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index: 9999;
@@ -225,13 +221,12 @@
         .modal p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
         .modal-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
 
-        /* History */
         details.history-card { background: var(--bg-card); border-radius: 15px; border: 1px solid var(--border-color); margin-bottom: 10px; width: 100%; max-width: 450px; overflow: hidden; }
         summary { padding: 14px; cursor: pointer; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; outline: none; }
         .hist-item { 
             display: grid; 
             grid-template-columns: auto 1fr auto; 
-            gap: 4px;          /* reduced from 8px for tighter layout */
+            gap: 1px;           /* exactly one pixel gap */
             padding: 10px; 
             border-bottom: 1px dotted var(--border-color); 
             font-size: 13px; 
@@ -240,7 +235,8 @@
         .hist-item-number {
             color: var(--text-muted);
             font-weight: 600;
-            min-width: 24px;    /* was 28px – smaller */
+            min-width: 24px;
+            line-height: normal;  /* align with text */
         }
     </style>
 </head>
@@ -315,6 +311,7 @@
         </div>
     </div>
 
+    <!-- Duplicate modal for merge/overwrite -->
     <div id="duplicateModal" class="modal-overlay">
         <div class="modal">
             <h3>Month Already Exists</h3>
@@ -384,8 +381,19 @@
         saveAndRefresh();
     }
 
+    // Get total expenses for current month (list + history)
+    function getCurrentMonthTotal() {
+        const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
+        const listTotal = state.expenses.reduce((s, e) => s + e.amount, 0);
+        const historyTotal = historyData
+            .filter(h => h.month === currentMonth)
+            .flatMap(h => h.details)
+            .reduce((s, d) => s + d.amount, 0);
+        return listTotal + historyTotal;
+    }
+
     function render() {
-        const totalExp = state.expenses.reduce((s, e) => s + e.amount, 0);
+        const totalExp = getCurrentMonthTotal(); // includes list + current month history
         const rem = state.salary - totalExp;
         const progress = state.salary > 0 ? Math.min((totalExp / state.salary) * 100, 100) : 0;
 
@@ -471,14 +479,17 @@
         saveAndRefresh();
     }
 
+    // Check for duplicate month and show modal only if exists
     function checkDuplicateHistory() {
-        if (state.expenses.length === 0) return showAlert("Empty List", "There is no data to save in history.");
+        if (state.expenses.length === 0) {
+            return showAlert("Empty List", "There is no data to save in history.");
+        }
         const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
         const existingIndex = historyData.findIndex(h => h.month === currentMonth);
         if (existingIndex !== -1) {
             document.getElementById('duplicateModal').style.display = 'flex';
         } else {
-            saveHistory('new');
+            saveHistory('new'); // no duplicate → save directly
         }
     }
 
@@ -516,7 +527,7 @@
         render();
     }
 
-    // Share function using Web Share API – opens native sharing apps
+    // Share function – opens native sharing sheet
     function shareMonth(month, salary, totalSpent, details) {
         const text = `${month}\nSalary: ₹${salary.toLocaleString()}\nTotal Expenses: ₹${totalSpent.toLocaleString()}\nRemaining: ₹${(salary - totalSpent).toLocaleString()}\n\nDetails:\n` + 
             details.map((d, i) => `${i+1}. ${d.name}: ₹${d.amount} (${d.fullDate})`).join('\n');
@@ -527,7 +538,6 @@
                 text: text,
             }).catch(() => {});
         } else {
-            // Fallback: copy to clipboard
             navigator.clipboard?.writeText(text).then(() => showAlert("Copied!", "History copied to clipboard."));
         }
     }
