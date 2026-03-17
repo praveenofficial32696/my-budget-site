@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Budget Tracker Pro</title>
+    <title>Budget Tracker Pro · Premium</title>
     <style>
         :root { 
             --primary-green: #22c55e; 
@@ -15,8 +15,9 @@
             --text-main: #1e293b;
             --text-muted: #64748b;
             --border-color: #e2e8f0;
-            --balance-outline: #ff9800; /* Orange border color */
-            --deep-indigo: #4c1d95; /* New Deep Purple/Indigo Variable */
+            --balance-outline: #ff9800;
+            /* premium light teal */
+            --premium-teal: #14b8a6; 
         }
 
         [data-theme="dark"] {
@@ -25,6 +26,7 @@
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --border-color: #334155;
+            --premium-teal: #0d9488;
         }
         
         body { 
@@ -85,9 +87,8 @@
             border: 1px solid var(--border-color);
         }
 
-        /* --- Updated Balance Box --- */
         .balance-box { 
-            background: var(--deep-indigo); 
+            background: var(--premium-teal); 
             padding: 22px; 
             border-radius: 24px; 
             text-align: center; 
@@ -98,7 +99,7 @@
         .balance-box.over-budget { background: var(--danger-red); }
 
         .balance-box small { 
-            color: #ffffff; /* Changed from black to White */
+            color: #ffffff;
             font-weight: 800; 
             text-transform: uppercase; 
             font-size: 12px; 
@@ -174,6 +175,42 @@
         .delete-btn { color: var(--danger-red); font-size: 18px; cursor: pointer; }
         .frequent-tag { background: var(--primary-blue); color: white; font-size: 8px; padding: 2px 5px; border-radius: 4px; margin-left: 5px; vertical-align: middle;}
 
+        /* Number badge for list items – reduced spacing */
+        .expense-number {
+            display: inline-block;
+            min-width: 24px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-right: 4px;   /* was 8px – now closer */
+        }
+
+        /* History card enhancements */
+        .history-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .share-btn {
+            background: transparent;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            color: var(--text-muted);
+            width: auto;
+        }
+        .share-btn:hover {
+            background: var(--bg-body);
+        }
+        .hist-summary-stats {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
         /* Modals */
         .modal-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%;
@@ -191,7 +228,20 @@
         /* History */
         details.history-card { background: var(--bg-card); border-radius: 15px; border: 1px solid var(--border-color); margin-bottom: 10px; width: 100%; max-width: 450px; overflow: hidden; }
         summary { padding: 14px; cursor: pointer; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; outline: none; }
-        .hist-item { display: grid; grid-template-columns: 1fr auto; gap: 5px; padding: 10px; border-bottom: 1px dotted var(--border-color); font-size: 13px; }
+        .hist-item { 
+            display: grid; 
+            grid-template-columns: auto 1fr auto; 
+            gap: 4px;          /* reduced from 8px for tighter layout */
+            padding: 10px; 
+            border-bottom: 1px dotted var(--border-color); 
+            font-size: 13px; 
+            align-items: center;
+        }
+        .hist-item-number {
+            color: var(--text-muted);
+            font-weight: 600;
+            min-width: 24px;    /* was 28px – smaller */
+        }
     </style>
 </head>
 <body data-theme="light">
@@ -356,7 +406,7 @@
 
         const list = document.getElementById('expenseList');
         list.innerHTML = '';
-        state.expenses.forEach(e => {
+        state.expenses.forEach((e, index) => {
             const isFrequent = nameCounts[e.name.toLowerCase().trim()] > 1;
             const isEditing = activeEditId === e.id;
             let li = document.createElement('li');
@@ -372,9 +422,12 @@
             } else {
                 li.innerHTML = `
                     <div class="li-content">
-                        <div style="flex:1">
-                            <strong style="font-size:14px;">${e.name}${isFrequent ? '<span class="frequent-tag">FREQ</span>' : ''}</strong>
-                            <div style="font-size:10px; color:var(--text-muted)">${e.fullDate}</div>
+                        <div style="flex:1; display: flex; align-items: center;">
+                            <span class="expense-number">${index+1}.</span>
+                            <div>
+                                <strong style="font-size:14px;">${e.name}${isFrequent ? '<span class="frequent-tag">FREQ</span>' : ''}</strong>
+                                <div style="font-size:10px; color:var(--text-muted)">${e.fullDate}</div>
+                            </div>
                         </div>
                         <div class="item-actions">
                             <span style="font-weight:800; font-size:14px;">₹${e.amount.toLocaleString()}</span>
@@ -443,12 +496,14 @@
         }
 
         if (type === 'merge' && existingIndex !== -1) {
-            historyData[existingIndex].details = [...state.expenses, ...historyData[existingIndex].details];
-            historyData[existingIndex].totalSpent = historyData[existingIndex].details.reduce((s, e) => s + e.amount, 0);
+            const existing = historyData[existingIndex];
+            existing.details = [...state.expenses, ...existing.details];
+            existing.totalSpent = existing.details.reduce((s, e) => s + e.amount, 0);
         } else {
             historyData.unshift({ 
                 id: Date.now(), 
                 month: monthYear, 
+                salary: state.salary,
                 totalSpent: state.expenses.reduce((s, e) => s + e.amount, 0), 
                 details: [...state.expenses] 
             });
@@ -461,12 +516,30 @@
         render();
     }
 
+    // Share function using Web Share API – opens native sharing apps
+    function shareMonth(month, salary, totalSpent, details) {
+        const text = `${month}\nSalary: ₹${salary.toLocaleString()}\nTotal Expenses: ₹${totalSpent.toLocaleString()}\nRemaining: ₹${(salary - totalSpent).toLocaleString()}\n\nDetails:\n` + 
+            details.map((d, i) => `${i+1}. ${d.name}: ₹${d.amount} (${d.fullDate})`).join('\n');
+        
+        if (navigator.share) {
+            navigator.share({
+                title: `Budget History: ${month}`,
+                text: text,
+            }).catch(() => {});
+        } else {
+            // Fallback: copy to clipboard
+            navigator.clipboard?.writeText(text).then(() => showAlert("Copied!", "History copied to clipboard."));
+        }
+    }
+
     function renderHistory() {
         const hList = document.getElementById('historyList');
         hList.innerHTML = '';
         historyData.forEach(h => {
-            const itemsHtml = h.details.map(d => `
+            const remaining = h.salary - h.totalSpent;
+            const itemsHtml = h.details.map((d, idx) => `
                 <div class="hist-item">
+                    <span class="hist-item-number">${idx+1}.</span>
                     <span><strong>${d.name}</strong><br><small style="color:var(--text-muted)">${d.fullDate}</small></span>
                     <span style="font-weight:700">₹${d.amount.toLocaleString()}</span>
                 </div>
@@ -475,10 +548,20 @@
             hList.innerHTML += `
                 <details class="history-card">
                     <summary>
-                        <span>🗓️ ${h.month}</span>
+                        <div class="history-header">
+                            <span>🗓️ ${h.month}</span>
+                            <button class="share-btn" onclick="shareMonth('${h.month}', ${h.salary}, ${h.totalSpent}, ${JSON.stringify(h.details).replace(/'/g, "\\'")})">📤</button>
+                        </div>
                         <span style="color:var(--primary-blue)">₹${h.totalSpent.toLocaleString()} ▾</span>
                     </summary>
-                    <div style="background:var(--bg-body)">${itemsHtml}</div>
+                    <div style="background:var(--bg-body); padding:10px;">
+                        <div class="hist-summary-stats">
+                            <span>💰 Income: ₹${h.salary.toLocaleString()}</span>
+                            <span>💸 Expense: ₹${h.totalSpent.toLocaleString()}</span>
+                            <span>⚖️ Remaining: ₹${remaining.toLocaleString()}</span>
+                        </div>
+                        ${itemsHtml}
+                    </div>
                 </details>`;
         });
     }
