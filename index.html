@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Budget Tracker · aligned amounts</title>
+    <!-- html2canvas for screenshot capture (preserves existing functionality) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { 
             --primary-green: #22c55e; 
@@ -59,6 +61,30 @@
             margin: 0;
         }
 
+        /* Wish list icon – left side, same style as theme toggle */
+        .wishlist-icon {
+            position: absolute;
+            left: 0;
+            cursor: pointer;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 18px;
+            transition: all 0.2s;
+            z-index: 5;
+            color: var(--text-muted);
+        }
+        .wishlist-icon:hover {
+            background: var(--bg-body);
+            transform: scale(1.05);
+        }
+
         .theme-toggle {
             position: absolute;
             right: 0;
@@ -72,6 +98,7 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 18px;
         }
 
         .card { 
@@ -172,17 +199,16 @@
         .delete-btn { color: var(--danger-red); font-size: 18px; cursor: pointer; }
         .frequent-tag { background: var(--primary-blue); color: white; font-size: 8px; padding: 2px 5px; border-radius: 4px; margin-left: 5px; vertical-align: middle;}
 
-        /* Number badge – exactly one space (1px) */
+        /* Increased spacing between number and text */
         .expense-number {
             display: inline-block;
             min-width: 24px;
             font-weight: 700;
             color: var(--text-muted);
-            margin-right: 1px;
+            margin-right: 4px;  /* changed from 1px → 4px */
             line-height: normal;
         }
 
-        /* Amount value styling – right aligned with minimum width */
         .amount-value {
             text-align: right;
             min-width: 70px;
@@ -239,6 +265,8 @@
         .modal {
             background: var(--bg-card); padding: 25px; border-radius: 24px; width: 100%; max-width: 340px; 
             text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .modal h3 { margin-top: 0; font-size: 18px; color: var(--text-main); }
         .modal p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
@@ -247,11 +275,11 @@
         details.history-card { background: var(--bg-card); border-radius: 15px; border: 1px solid var(--border-color); margin-bottom: 10px; width: 100%; max-width: 450px; overflow: hidden; }
         summary { padding: 14px; cursor: pointer; display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; outline: none; }
         
-        /* mobile-friendly history item grid */
+        /* mobile-friendly history item grid - gap set to 0px as requested */
         .hist-item { 
             display: grid; 
             grid-template-columns: auto 1fr minmax(70px, auto); 
-            gap: 4px;          /* slightly larger gap for readability (preserves spacing, not a functional change) */
+            gap: 0;          /* changed from 4px → 0px */
             padding: 10px; 
             border-bottom: 1px dotted var(--border-color); 
             font-size: 13px; 
@@ -294,6 +322,8 @@
 <body data-theme="light">
 
     <div class="header-container">
+        <!-- Wish list / Future Expense icon (left) now opens a full modal -->
+        <button class="wishlist-icon" onclick="openWishlistModal()" title="Wish list / future expense">🎁</button>
         <h1 class="main-title">💰 Budget Tracker</h1>
         <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
     </div>
@@ -344,6 +374,7 @@
         <div id="historyList"></div>
     </div>
 
+    <!-- Existing modals (unchanged) -->
     <div id="alertModal" class="modal-overlay">
         <div class="modal">
             <h3 id="alertTitle">Notice</h3>
@@ -363,24 +394,70 @@
         </div>
     </div>
 
-    <!-- Duplicate modal for merge/overwrite -->
+    <!-- Duplicate modal – BUTTON ORDER CHANGED: Overwrite first, then Merge, then Cancel -->
     <div id="duplicateModal" class="modal-overlay">
         <div class="modal">
             <h3>Month Already Exists</h3>
             <p>History for this month is already saved. What would you like to do?</p>
             <div class="modal-btns">
+                <!-- Overwrite first (warning amber) – now opens confirmation modal -->
+                <button class="add-btn" style="background: var(--warning-amber);" onclick="showOverwriteConfirm()">Overwrite (Replace old)</button>
+                <!-- Merge second (blue) -->
                 <button class="add-btn" onclick="handleHistoryAction('merge')">Merge (Add to existing)</button>
-                <button class="add-btn" style="background: var(--warning-amber);" onclick="handleHistoryAction('overwrite')">Overwrite (Replace old)</button>
+                <!-- Cancel last -->
                 <button class="save-month-btn" onclick="closeModal('duplicateModal')">Cancel</button>
             </div>
         </div>
     </div>
 
+    <!-- NEW: Overwrite confirmation modal (appears above duplicateModal) -->
+    <div id="overwriteConfirmModal" class="modal-overlay">
+        <div class="modal">
+            <h3>⚠️ Confirm Overwrite</h3>
+            <p>This will permanently replace the existing history for this month. Are you sure?</p>
+            <div class="modal-btns">
+                <button class="add-btn" style="background: var(--warning-amber);" onclick="confirmOverwrite()">Yes, Overwrite</button>
+                <button class="save-month-btn" onclick="closeModal('overwriteConfirmModal')">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wishlist / Future Expense Modal with numbering, gap 0, padding 5px, border-bottom 2px -->
+    <div id="wishlistModal" class="modal-overlay">
+        <div class="modal">
+            <h3>✨ Future Expenses / Wish List</h3>
+            <!-- Inline validation message (hidden by default) -->
+            <div id="futureValidationMsg" style="color: var(--danger-red); font-size: 13px; margin: 5px 0; display: none;"></div>
+            <div style="margin: 15px 0;">
+                <input type="text" id="futureName" placeholder="Item name (e.g. New Laptop)" style="margin-bottom: 8px;">
+                <input type="number" id="futureAmount" placeholder="Amount (₹)" style="margin-bottom: 8px;">
+                <button class="add-btn" onclick="addFutureExpense()" style="margin-bottom: 5px;">Add to Wish List</button>
+            </div>
+            <!-- Future list with numbering, gap 0, padding 5px, border-bottom 2px -->
+            <div style="max-height: 200px; overflow-y: auto; border-top: 1px solid var(--border-color); padding-top: 10px;">
+                <ul id="futureList" style="list-style: none; padding: 0; margin: 0;"></ul>
+            </div>
+            <div style="margin-top: 15px; font-weight: 700; display: flex; justify-content: space-between;">
+                <span>Total:</span>
+                <span id="futureTotal">₹0</span>
+            </div>
+            <div class="modal-btns">
+                <button class="save-month-btn" onclick="closeModal('wishlistModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
 <script>
+    // ================== EXISTING STATE (unchanged) ==================
     let state = JSON.parse(localStorage.getItem('budget_pro_data')) || { salary: 0, expenses: [] };
     let historyData = JSON.parse(localStorage.getItem('budget_pro_history')) || [];
     let activeEditId = null;
 
+    // ================== NEW: FUTURE EXPENSES STATE ==================
+    let futureExpenses = JSON.parse(localStorage.getItem('budget_pro_future')) || [];
+    let editingFutureIndex = -1; // -1 means no item is being edited
+
+    // ------------------ Existing functions (preserved) ------------------
     function capitalizeFirst(el) {
         el.value = el.value.charAt(0).toUpperCase() + el.value.slice(1);
     }
@@ -433,7 +510,6 @@
         saveAndRefresh();
     }
 
-    // Get total expenses for current month (list + history)
     function getCurrentMonthTotal() {
         const currentMonth = new Date().toLocaleString('default', { month: 'long', year: 'numeric' });
         const listTotal = state.expenses.reduce((s, e) => s + e.amount, 0);
@@ -445,7 +521,7 @@
     }
 
     function render() {
-        const totalExp = getCurrentMonthTotal(); // includes list + current month history
+        const totalExp = getCurrentMonthTotal();
         const rem = state.salary - totalExp;
         const progress = state.salary > 0 ? Math.min((totalExp / state.salary) * 100, 100) : 0;
 
@@ -531,7 +607,6 @@
         saveAndRefresh();
     }
 
-    // Check for duplicate month and show modal only if exists
     function checkDuplicateHistory() {
         if (state.expenses.length === 0) {
             return showAlert("Empty List", "There is no data to save in history.");
@@ -541,12 +616,18 @@
         if (existingIndex !== -1) {
             document.getElementById('duplicateModal').style.display = 'flex';
         } else {
-            saveHistory('new'); // no duplicate → save directly
+            saveHistory('new');
         }
     }
 
+    // Modified: overwrite now goes through confirmation
     function handleHistoryAction(action) {
-        saveHistory(action);
+        if (action === 'overwrite') {
+            // This should now be called only from confirmOverwrite()
+            saveHistory('overwrite');
+        } else {
+            saveHistory(action);
+        }
         closeModal('duplicateModal');
     }
 
@@ -562,12 +643,12 @@
             const existing = historyData[existingIndex];
             existing.details = [...state.expenses, ...existing.details];
             existing.totalSpent = existing.details.reduce((s, e) => s + e.amount, 0);
-            existing.salary = state.salary; // update salary to current top card value
-        } else {
+            existing.salary = state.salary;
+        } else if (type !== 'merge') { // for 'new' or after overwrite
             historyData.unshift({ 
                 id: Date.now(), 
                 month: monthYear, 
-                salary: state.salary,  // captured from top card at save time
+                salary: state.salary,
                 totalSpent: state.expenses.reduce((s, e) => s + e.amount, 0), 
                 details: [...state.expenses] 
             });
@@ -580,23 +661,75 @@
         render();
     }
 
-    // Share function – uses Web Share API when available (opens native share sheet on mobile/Windows)
-    // Falls back to clipboard copy with a user-friendly message.
-    function shareMonth(month) {
+    // New functions for overwrite confirmation
+    function showOverwriteConfirm() {
+        closeModal('duplicateModal'); // hide duplicate modal
+        document.getElementById('overwriteConfirmModal').style.display = 'flex';
+    }
+
+    function confirmOverwrite() {
+        closeModal('overwriteConfirmModal');
+        // directly call handleHistoryAction with overwrite, which will call saveHistory('overwrite')
+        saveHistory('overwrite');
+        // no need to call handleHistoryAction again
+    }
+
+    // Screenshot share (unchanged)
+    async function shareMonth(month) {
         const entry = historyData.find(h => h.month === month);
         if (!entry) return showAlert("Error", "Month not found");
-        const text = `${entry.month}\nSalary: ₹${entry.salary.toLocaleString()}\nTotal Expenses: ₹${entry.totalSpent.toLocaleString()}\nRemaining: ₹${(entry.salary - entry.totalSpent).toLocaleString()}\n\nDetails:\n` + 
-            entry.details.map((d, i) => `${i+1}. ${d.name}: ₹${d.amount} (${d.fullDate})`).join('\n');
-        
-        if (navigator.share) {
-            navigator.share({
-                title: `Budget History: ${entry.month}`,
-                text: text,
-            }).catch(() => {}); // user cancelled is fine
-        } else {
-            // Fallback: copy to clipboard – still lets user paste into any app
-            navigator.clipboard?.writeText(text).then(() => showAlert("Copied!", "History copied to clipboard. You can paste it anywhere."))
-            .catch(() => showAlert("Sharing unavailable", "Your browser does not support sharing, and clipboard access failed."));
+
+        const detailsEl = document.querySelector(`details[data-month="${month}"]`);
+        if (!detailsEl) return showAlert("Error", "History card not found on page");
+
+        const wasOpen = detailsEl.open;
+        if (!wasOpen) detailsEl.open = true;
+
+        try {
+            const canvas = await html2canvas(detailsEl, {
+                scale: 1.5,
+                backgroundColor: null,
+                logging: false,
+                allowTaint: false,
+                useCORS: true
+            });
+
+            if (!wasOpen) detailsEl.open = false;
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    showAlert("Error", "Could not generate image");
+                    return;
+                }
+                const file = new File([blob], `budget-${month}.png`, { type: 'image/png' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            title: `Budget History: ${month}`,
+                            text: `My budget summary for ${month}`,
+                            files: [file]
+                        });
+                    } catch (err) {}
+                } else {
+                    if (navigator.share) {
+                        try {
+                            const text = `${entry.month}\nSalary: ₹${entry.salary.toLocaleString()}\nExpenses: ₹${entry.totalSpent.toLocaleString()}\nRemaining: ₹${(entry.salary - entry.totalSpent).toLocaleString()}`;
+                            await navigator.share({ title: `Budget History: ${month}`, text: text });
+                        } catch (e) {}
+                    } else {
+                        const link = document.createElement('a');
+                        link.download = `budget-${month}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+                        showAlert("Image downloaded", "You can now share it manually via WhatsApp or email.");
+                    }
+                }
+            }, 'image/png', 0.95);
+        } catch (err) {
+            console.error('Screenshot failed', err);
+            showAlert("Screenshot failed", "Could not capture history. Please try again.");
+            if (!wasOpen) detailsEl.open = false;
         }
     }
 
@@ -624,7 +757,7 @@
                             <span>💰 Income: ₹${h.salary.toLocaleString()}</span>
                             <span>💸 Expense: ₹${h.totalSpent.toLocaleString()}</span>
                             <span>⚖️ Remaining: ₹${remaining.toLocaleString()}</span>
-                            <button class="share-btn" onclick="shareMonth('${h.month}')" title="Share this month">📤</button>
+                            <button class="share-btn" onclick="shareMonth('${h.month}')" title="Share screenshot">📤</button>
                         </div>
                         ${itemsHtml}
                     </div>
@@ -632,6 +765,137 @@
         });
     }
 
+    // ================== UPDATED WISHLIST FUNCTIONS (gap:0, padding:5px 5px, border-bottom:2px) ==================
+    function showFutureValidation(message) {
+        const msgDiv = document.getElementById('futureValidationMsg');
+        msgDiv.innerText = message;
+        msgDiv.style.display = 'block';
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            msgDiv.style.display = 'none';
+        }, 3000);
+    }
+
+    function openWishlistModal() {
+        editingFutureIndex = -1;
+        // Clear any old validation message
+        document.getElementById('futureValidationMsg').style.display = 'none';
+        renderFutureList();
+        document.getElementById('wishlistModal').style.display = 'flex';
+    }
+
+    function addFutureExpense() {
+        const nameInput = document.getElementById('futureName');
+        const amountInput = document.getElementById('futureAmount');
+        const name = nameInput.value.trim();
+        const amount = parseFloat(amountInput.value);
+
+        // Inline validation (no popup)
+        if (!name) {
+            showFutureValidation("Missing name — Please enter an item name.");
+            return;
+        }
+        if (isNaN(amount) || amount <= 0) {
+            showFutureValidation("Invalid amount — Please enter a valid positive amount.");
+            return;
+        }
+
+        futureExpenses.push({ name, amount });
+        localStorage.setItem('budget_pro_future', JSON.stringify(futureExpenses));
+        nameInput.value = '';
+        amountInput.value = '';
+        editingFutureIndex = -1;
+        // Clear any old validation message
+        document.getElementById('futureValidationMsg').style.display = 'none';
+        renderFutureList();
+    }
+
+    function deleteFutureExpense(index) {
+        futureExpenses.splice(index, 1);
+        localStorage.setItem('budget_pro_future', JSON.stringify(futureExpenses));
+        if (editingFutureIndex === index) editingFutureIndex = -1;
+        renderFutureList();
+    }
+
+    function startEditFuture(index) {
+        editingFutureIndex = index;
+        renderFutureList();
+    }
+
+    function saveEditFuture(index) {
+        const nameInput = document.getElementById(`edit-future-name-${index}`);
+        const amountInput = document.getElementById(`edit-future-amt-${index}`);
+        if (!nameInput || !amountInput) return;
+        const newName = nameInput.value.trim();
+        const newAmount = parseFloat(amountInput.value);
+        if (!newName) {
+            showFutureValidation("Invalid name — Please enter a name.");
+            return;
+        }
+        if (isNaN(newAmount) || newAmount <= 0) {
+            showFutureValidation("Invalid amount — Please enter a valid positive amount.");
+            return;
+        }
+        futureExpenses[index] = { name: newName, amount: newAmount };
+        localStorage.setItem('budget_pro_future', JSON.stringify(futureExpenses));
+        editingFutureIndex = -1;
+        renderFutureList();
+    }
+
+    function cancelEditFuture() {
+        editingFutureIndex = -1;
+        renderFutureList();
+    }
+
+    function renderFutureList() {
+        const listEl = document.getElementById('futureList');
+        const totalEl = document.getElementById('futureTotal');
+        if (!listEl) return;
+
+        if (futureExpenses.length === 0) {
+            listEl.innerHTML = '<li style="color:var(--text-muted); text-align:center;">No future expenses added.</li>';
+            totalEl.innerText = '₹0';
+            return;
+        }
+
+        let total = 0;
+        let itemsHtml = '';
+        futureExpenses.forEach((item, idx) => {
+            total += item.amount;
+            if (editingFutureIndex === idx) {
+                // Inline edit mode with gap 0, padding 5px, border-bottom 2px
+                itemsHtml += `
+                    <li style="display: grid; grid-template-columns: auto 1fr auto auto; gap: 0; align-items: center; padding: 5px 5px; border-bottom: 2px solid var(--border-color); text-align: left;">
+                        <span class="expense-number">${idx+1}.</span>
+                        <div style="width:100%;"><input type="text" id="edit-future-name-${idx}" value="${item.name}" style="padding: 8px; font-size:14px; width:100%;"></div>
+                        <input type="number" id="edit-future-amt-${idx}" value="${item.amount}" style="padding: 8px; font-size:14px; width:90px;">
+                        <button onclick="saveEditFuture(${idx})" style="background:none; border:none; font-size:20px; width:auto; padding:8px; color:green;">💾</button>
+                    </li>
+                `;
+            } else {
+                itemsHtml += `
+                    <li style="display: grid; grid-template-columns: auto 1fr auto auto; gap: 0; align-items: center; padding: 5px 5px; border-bottom: 2px solid var(--border-color); text-align: left;">
+                        <span class="expense-number">${idx+1}.</span>
+                        <div><strong>${item.name}</strong><br><small>₹${item.amount.toLocaleString()}</small></div>
+                        <button onclick="startEditFuture(${idx})" style="background:none; border:none; color:#fb923c; font-size:20px; width:auto; padding:8px;">✏️</button>
+                        <button onclick="deleteFutureExpense(${idx})" style="background:none; border:none; color:var(--danger-red); font-size:20px; width:auto; padding:8px;">🗑️</button>
+                    </li>
+                `;
+            }
+        });
+        listEl.innerHTML = itemsHtml;
+        totalEl.innerText = `₹${total.toLocaleString()}`;
+    }
+
+    // Overlay click for new modals
+    document.getElementById('wishlistModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal('wishlistModal');
+    });
+    document.getElementById('overwriteConfirmModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal('overwriteConfirmModal');
+    });
+
+    // ================== INITIAL RENDER ==================
     render();
 </script>
 </body>
